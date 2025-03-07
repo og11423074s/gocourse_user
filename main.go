@@ -1,21 +1,56 @@
 package main
 
 import (
-	"fmt"
+	"github.com/joho/godotenv"
+	"github.com/og11423074s/gocourse_user/pkg/bootstrap"
+
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/og11423074s/gocourse_user/internal/user"
 )
 
-//TIP <p>To run your code, right-click the code and select <b>Run</b>.</p> <p>Alternatively, click
-// the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.</p>
-
 func main() {
-	//TIP <p>Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined text
-	// to see how GoLand suggests fixing the warning.</p><p>Alternatively, if available, click the lightbulb to view possible fixes.</p>
-	s := "gopher"
-	fmt.Println("Hello and welcome, %s!", s)
 
-	for i := 1; i <= 5; i++ {
-		//TIP <p>To start your debugging session, right-click your code in the editor and select the Debug option.</p> <p>We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-		// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.</p>
-		fmt.Println("i =", 100/i)
+	router := mux.NewRouter()
+	// Load .env file
+	_ = godotenv.Load()
+
+	// Initialize logger
+	logger := bootstrap.InitLogger()
+
+	// Connect to database
+	db, err := bootstrap.DBConnection()
+
+	if err != nil {
+		logger.Fatal(err)
 	}
+
+	// User repository
+	userRepo := user.NewRepo(logger, db)
+
+	// User service
+	userSrv := user.NewService(logger, userRepo)
+
+	// Endpoints
+	userEnd := user.MakeEndpoints(userSrv)
+
+	// User endpoints
+	router.HandleFunc("/users", userEnd.Create).Methods("POST")
+	router.HandleFunc("/users/{id}", userEnd.Get).Methods("GET")
+	router.HandleFunc("/users", userEnd.GetAll).Methods("GET")
+	router.HandleFunc("/users/{id}", userEnd.Update).Methods("PATCH")
+	router.HandleFunc("/users/{id}", userEnd.Delete).Methods("DELETE")
+
+	srv := &http.Server{
+		Handler:      http.TimeoutHandler(router, time.Second*3, "Timeout!!"),
+		Addr:         "127.0.0.1:8081",
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
+
+	log.Fatal(srv.ListenAndServe())
+
 }
