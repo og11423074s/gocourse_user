@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/og11423074s/gocourse_meta/meta"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -101,7 +102,7 @@ func makeGetAllEndpoint(s Service) Controller {
 			return
 		}
 
-		metaResult, err := meta.New(page, limit, count, "15")
+		metaResult, err := meta.New(page, limit, count, os.Getenv("PAGINATOR_LIMIT_DEFAULT"))
 
 		if err != nil {
 			w.WriteHeader(400)
