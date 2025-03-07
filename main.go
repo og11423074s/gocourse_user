@@ -29,7 +29,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	pagLimDef := os.Getenv("PAGINATION_LIMIT_DEFAULT")
+	pagLimDef := os.Getenv("PAGINATOR_LIMIT_DEFAULT")
 	if pagLimDef == "" {
 		logger.Fatal("PAGINATION_LIMIT_DEFAULT is not set")
 	}
