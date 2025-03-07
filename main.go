@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/joho/godotenv"
 	"github.com/og11423074s/gocourse_user/pkg/bootstrap"
+	"os"
 
 	"log"
 	"net/http"
@@ -28,6 +29,11 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	pagLimDef := os.Getenv("PAGINATION_LIMIT_DEFAULT")
+	if pagLimDef == "" {
+		logger.Fatal("PAGINATION_LIMIT_DEFAULT is not set")
+	}
+
 	// User repository
 	userRepo := user.NewRepo(logger, db)
 
@@ -35,7 +41,7 @@ func main() {
 	userSrv := user.NewService(logger, userRepo)
 
 	// Endpoints
-	userEnd := user.MakeEndpoints(userSrv)
+	userEnd := user.MakeEndpoints(userSrv, user.Config{LimPageDef: pagLimDef})
 
 	// User endpoints
 	router.HandleFunc("/users", userEnd.Create).Methods("POST")
