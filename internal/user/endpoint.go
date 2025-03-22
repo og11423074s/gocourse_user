@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"github.com/og11423074s/go_lib_response/response"
+	"github.com/og11423074s/gocourse_meta/meta"
 )
 
 type (
@@ -23,11 +24,27 @@ type (
 		Phone     string `json:"phone"`
 	}
 
+	GetReq struct {
+		ID string
+	}
+
+	DeleteReq struct {
+		ID string
+	}
+
+	GetAllReq struct {
+		FirstName string
+		LastName  string
+		Limit     int
+		Page      int
+	}
+
 	UpdateReq struct {
 		FirstName *string `json:"first_name"`
 		LastName  *string `json:"last_name"`
 		Email     *string `json:"email"`
 		Phone     *string `json:"phone"`
+		ID        string
 	}
 
 	Config struct {
@@ -60,121 +77,92 @@ func makeCreateEndpoint(s Service) Controller {
 	}
 }
 
-/*
-	func makeGetAllEndpoint(s Service, config Config) Controller {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+func makeGetAllEndpoint(s Service, config Config) Controller {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
 
-			v := r.URL.Query()
+		req := request.(GetAllReq)
 
-			filters := Filters{
-				FirstName: v.Get("first_name"),
-				LastName:  v.Get("last_name"),
-			}
-
-			limit, _ := strconv.Atoi(v.Get("limit"))
-			page, _ := strconv.Atoi(v.Get("page"))
-
-			// select count(*) from users where first_name = ? and last_name = ?
-			count, err := s.Count(filters)
-			if err != nil {
-				w.WriteHeader(500)
-				json.NewEncoder(w).Encode(&Response{Status: 500, Error: err.Error()})
-				return
-			}
-
-			metaResult, err := meta.New(page, limit, count, config.LimPageDef)
-
-			if err != nil {
-				w.WriteHeader(400)
-				json.NewEncoder(w).Encode(&Response{Status: 400, Error: err.Error()})
-				return
-			}
-
-			users, err := s.GetAll(filters, metaResult.Offset(), metaResult.Limit())
-			if err != nil {
-				w.WriteHeader(400)
-				json.NewEncoder(w).Encode(&Response{Status: 400, Error: err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(&Response{Status: 200, Data: users, Meta: metaResult})
+		filters := Filters{
+			FirstName: req.FirstName,
+			LastName:  req.LastName,
 		}
-	}
 
-	func makeGetEndpoint(s Service) Controller {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			path := mux.Vars(r)
-			id := path["id"]
-
-			user, err := s.Get(id)
-
-			if err != nil {
-				w.WriteHeader(404)
-				json.NewEncoder(w).Encode(&Response{Status: 404, Error: "user doesn't exist"})
-				return
-			}
-
-			json.NewEncoder(w).Encode(&Response{Status: 200, Data: user})
+		// select count(*) from users where first_name = ? and last_name = ?
+		count, err := s.Count(ctx, filters)
+		if err != nil {
+			return nil, response.InternalServerError(err.Error())
 		}
-	}
 
-	func makeUpdateEndpoint(s Service) Controller {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		metaResult, err := meta.New(req.Page, req.Limit, count, config.LimPageDef)
 
-			var req UpdateReq
-
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				w.WriteHeader(400)
-				json.NewEncoder(w).Encode(&Response{Status: 400, Error: "invalid request format"})
-				return
-			}
-
-			if req.FirstName != nil && *req.FirstName == "" {
-				w.WriteHeader(400)
-				json.NewEncoder(w).Encode(&Response{Status: 400, Error: "field name is required"})
-				return
-			}
-
-			if req.LastName != nil && *req.LastName == "" {
-				w.WriteHeader(400)
-				json.NewEncoder(w).Encode(&Response{Status: 400, Error: "LastName name is required"})
-				return
-			}
-
-			path := mux.Vars(r)
-			id := path["id"]
-
-			if err := s.Update(id, req.FirstName, req.LastName, req.Email, req.Phone); err != nil {
-				w.WriteHeader(404)
-				json.NewEncoder(w).Encode(&Response{Status: 400, Error: "user doesn't exist"})
-				return
-			}
-
-			json.NewEncoder(w).Encode(&Response{Status: 200, Data: "user updated"})
+		if err != nil {
+			return nil, response.BadRequest(err.Error())
 		}
-	}
 
-	func makeDeleteEndpoint(s Service) Controller {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			path := mux.Vars(r)
-			id := path["id"]
-
-			if err := s.Delete(id); err != nil {
-				w.WriteHeader(404)
-				json.NewEncoder(w).Encode(&Response{Status: 404, Error: "user doesn't exist"})
-				return
-			}
-
-			json.NewEncoder(w).Encode(&Response{Status: 200, Data: "user deleted"})
-
+		users, err := s.GetAll(ctx, filters, metaResult.Offset(), metaResult.Limit())
+		if err != nil {
+			return nil, response.BadRequest(err.Error())
 		}
+
+		return response.OK("success", users, metaResult), nil
 	}
-*/
+}
+
+func makeGetEndpoint(s Service) Controller {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+
+		req := request.(GetReq)
+		user, err := s.Get(ctx, req.ID)
+
+		if err != nil {
+			return nil, response.NotFound(err.Error())
+		}
+
+		return response.OK("success", user, nil), nil
+	}
+}
+
+func makeUpdateEndpoint(s Service) Controller {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+
+		req := request.(UpdateReq)
+
+		if req.FirstName != nil && *req.FirstName == "" {
+			return nil, response.BadRequest("field firstName is required")
+		}
+
+		if req.LastName != nil && *req.LastName == "" {
+			return nil, response.BadRequest("field lastName name is required")
+		}
+
+		if err := s.Update(ctx, req.ID, req.FirstName, req.LastName, req.Email, req.Phone); err != nil {
+			return nil, response.InternalServerError(err.Error())
+		}
+
+		return response.OK("success", nil, nil), nil
+	}
+}
+
+func makeDeleteEndpoint(s Service) Controller {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+
+		req := request.(DeleteReq)
+
+		if err := s.Delete(ctx, req.ID); err != nil {
+			return nil, response.InternalServerError(err.Error())
+		}
+
+		return response.OK("success", nil, nil), nil
+
+	}
+}
+
 func MakeEndpoints(s Service, config Config) Endpoints {
 	return Endpoints{
 		Create: makeCreateEndpoint(s),
-		/*Get:    makeGetEndpoint(s),
+		Get:    makeGetEndpoint(s),
 		GetAll: makeGetAllEndpoint(s, config),
 		Update: makeUpdateEndpoint(s),
-		Delete: makeDeleteEndpoint(s),*/
+		Delete: makeDeleteEndpoint(s),
 	}
 }
