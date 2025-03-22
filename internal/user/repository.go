@@ -72,10 +72,16 @@ func (r *repo) Get(ctx context.Context, id string) (*domain.User, error) {
 func (r *repo) DeleteById(ctx context.Context, id string) error {
 	user := domain.User{ID: id}
 
-	err := r.db.WithContext(ctx).Delete(&user).Error
-	if err != nil {
-		r.log.Println(err)
-		return err
+	result := r.db.WithContext(ctx).Delete(&user)
+
+	if result.Error != nil {
+		r.log.Println(result.Error)
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		r.log.Printf("user %s doesn't exists", id)
+		return fmt.Errorf("user %s doesn't exists", id)
 	}
 
 	return nil
@@ -101,9 +107,16 @@ func (r *repo) Update(ctx context.Context, id string, firstName *string, lastNam
 		values["phone"] = *phone
 	}
 
-	if err := r.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", id).Updates(values).Error; err != nil {
-		r.log.Println(err)
-		return err
+	result := r.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", id).Updates(values)
+
+	if result.Error != nil {
+		r.log.Println(result.Error)
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		r.log.Printf("user %s doesn't exists", id)
+		return fmt.Errorf("user %s doesn't exists", id)
 	}
 
 	return nil
