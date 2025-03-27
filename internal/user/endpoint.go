@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"github.com/og11423074s/go_lib_response/response"
 	"github.com/og11423074s/gocourse_meta/meta"
 )
@@ -60,11 +61,11 @@ func makeCreateEndpoint(s Service) Controller {
 		// validations
 
 		if req.FirstName == "" {
-			return nil, response.BadRequest("first name is required")
+			return nil, response.BadRequest(ErrFirstNameRequired.Error())
 		}
 
 		if req.LastName == "" {
-			return nil, response.BadRequest("last name is required")
+			return nil, response.BadRequest(ErrLastNameRequired.Error())
 		}
 
 		// service
@@ -115,7 +116,10 @@ func makeGetEndpoint(s Service) Controller {
 		user, err := s.Get(ctx, req.ID)
 
 		if err != nil {
-			return nil, response.NotFound(err.Error())
+			if errors.As(err, &ErrorNotFound{}) {
+				return nil, response.NotFound(err.Error())
+			}
+			return nil, response.InternalServerError(err.Error())
 		}
 
 		return response.OK("success", user, nil), nil
@@ -128,14 +132,19 @@ func makeUpdateEndpoint(s Service) Controller {
 		req := request.(UpdateReq)
 
 		if req.FirstName != nil && *req.FirstName == "" {
-			return nil, response.BadRequest("field firstName is required")
+			return nil, response.BadRequest(ErrFirstNameRequired.Error())
 		}
 
 		if req.LastName != nil && *req.LastName == "" {
-			return nil, response.BadRequest("field lastName name is required")
+			return nil, response.BadRequest(ErrLastNameRequired.Error())
 		}
 
-		if err := s.Update(ctx, req.ID, req.FirstName, req.LastName, req.Email, req.Phone); err != nil {
+		err := s.Update(ctx, req.ID, req.FirstName, req.LastName, req.Email, req.Phone)
+
+		if err != nil {
+			if errors.As(err, &ErrorNotFound{}) {
+				return nil, response.NotFound(err.Error())
+			}
 			return nil, response.InternalServerError(err.Error())
 		}
 
@@ -148,7 +157,12 @@ func makeDeleteEndpoint(s Service) Controller {
 
 		req := request.(DeleteReq)
 
-		if err := s.Delete(ctx, req.ID); err != nil {
+		err := s.Delete(ctx, req.ID)
+
+		if err != nil {
+			if errors.As(err, &ErrorNotFound{}) {
+				return nil, response.NotFound(err.Error())
+			}
 			return nil, response.InternalServerError(err.Error())
 		}
 

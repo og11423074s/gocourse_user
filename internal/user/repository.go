@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/og11423074s/gocourse_domain/domain"
 	"gorm.io/gorm"
@@ -63,6 +64,11 @@ func (r *repo) Get(ctx context.Context, id string) (*domain.User, error) {
 	err := r.db.WithContext(ctx).First(&user).Error
 	if err != nil {
 		r.log.Println(err)
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrorNotFound{id}
+		}
+
 		return nil, err
 	}
 
@@ -81,7 +87,7 @@ func (r *repo) DeleteById(ctx context.Context, id string) error {
 
 	if result.RowsAffected == 0 {
 		r.log.Printf("user %s doesn't exists", id)
-		return fmt.Errorf("user %s doesn't exists", id)
+		return ErrorNotFound{id}
 	}
 
 	return nil
@@ -116,7 +122,7 @@ func (r *repo) Update(ctx context.Context, id string, firstName *string, lastNam
 
 	if result.RowsAffected == 0 {
 		r.log.Printf("user %s doesn't exists", id)
-		return fmt.Errorf("user %s doesn't exists", id)
+		return ErrorNotFound{id}
 	}
 
 	return nil
