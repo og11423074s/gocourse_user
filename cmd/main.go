@@ -45,12 +45,6 @@ func main() {
 
 	h := handler.NewUserHTTPServer(ctx, user.MakeEndpoints(userSrv, user.Config{LimPageDef: pagLimDef}))
 
-	//router.HandleFunc("/users", userEnd.Create).Methods("POST")
-	//router.HandleFunc("/users/{id}", userEnd.Get).Methods("GET")
-	//router.HandleFunc("/users", userEnd.GetAll).Methods("GET")
-	//router.HandleFunc("/users/{id}", userEnd.Update).Methods("PATCH")
-	//router.HandleFunc("/users/{id}", userEnd.Delete).Methods("DELETE")
-
 	port := os.Getenv("PORT")
 	address := fmt.Sprintf("127.0.0.1:%s", port)
 
